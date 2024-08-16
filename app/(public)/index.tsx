@@ -4,11 +4,65 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import DumbbellIcon from '@/components/DumbbellIcon';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity } from 'react-native';
+import { Button } from '@/components/Button';
+import { router } from 'expo-router';
+
+import * as WebBrowser from 'expo-web-browser'
+
+import { useOAuth } from '@clerk/clerk-expo';
+
+
+async function warmUpBrowser() {
+  if (Platform.OS !== 'web') {
+    await WebBrowser.warmUpAsync();
+  } else {
+    console.warn('WebBrowser.warmUpAsync is not available on web');
+  }
+}
+
+WebBrowser.maybeCompleteAuthSession()
+
 
 export default function HomeScreen() {
+
+  const [isLoading, setIsLoding] = useState(false)
+
+  const googleOAuth = useOAuth({ strategy: "oauth_google"})
+  
+  async function onGoogleSignIn() {
+    try{
+      setIsLoding(true)
+
+      const oAuthFlow = await googleOAuth.startOAuthFlow()
+
+      if(oAuthFlow.authSessionResult?.type === "success"){
+        if(oAuthFlow.setActive){
+          await oAuthFlow.setActive({ session: oAuthFlow.createdSessionId })
+        }
+      } else {
+        setIsLoding(false)
+      }
+
+    } catch (error) {
+      console.log(error)
+      setIsLoding(false)
+    }
+  }
+
+
+  useEffect(() => {
+    WebBrowser.warmUpAsync()
+
+    return () => {
+      WebBrowser.coolDownAsync()
+    }
+  })
+  
+  
   return (
+    
     <ParallaxScrollView
       headerBackgroundColor={{ light: '#121214', dark: '#121214' }}
       headerImage={
@@ -41,9 +95,7 @@ export default function HomeScreen() {
       <TouchableOpacity style={styles.button}>
         <Text style={styles.buttonText}>Ingresar</Text>
       </TouchableOpacity>
-      <TouchableOpacity style={styles.buttonGoogle}>
-        <Text style={styles.buttonTextGoogle}>Ingresar con Google</Text>
-      </TouchableOpacity>
+      <Button icon="logo-google" title="Entrar con Google" onPress={onGoogleSignIn} isLoading={isLoading}/>
       <TouchableOpacity>
         <Text style={styles.linkText}>¿Olvidaste tu contraseña?</Text>
       </TouchableOpacity>
@@ -112,20 +164,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginVertical: 10,
   },
-  buttonGoogle: {
-    width: '100%',
-    padding: 15,
-    backgroundColor: '#121214', // Botón verde
-    borderRadius: 5,
-    alignItems: 'center',
-    marginVertical: 10,
-  },
   buttonText: {
     color: '#fff',
-    fontWeight: 'bold',
-  },
-  buttonTextGoogle: {
-    color: '#FFFFFF',
     fontWeight: 'bold',
   },
   linkText: {
